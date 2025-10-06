@@ -1,4 +1,6 @@
-[!NOTE] ReHelicity is not released yet, and is planned to release some time this week.
+Few things to keep in mind: 
+1. ReHelicity is not released yet, and is planned to release some time this week.
+2. I am aware that some of the devs dont want this to be apart of there game, this is tool for looking for good servers.
 
 # ReHelicity
 
@@ -21,7 +23,7 @@ If you install elsewhere, edit line 7 in the script to match your path.
 
 ## Setup
 
-1. Download `Untitled.ahk` 
+1. Download `------.ahk` 
 2. Right-click and select "Run Script"
 3. Click the **Config** tab
 4. Paste your private server link
