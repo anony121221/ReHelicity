@@ -1,6 +1,6 @@
 # Helicity Reroller
 
-Automated server reroller for Helicity using OCR detection. Finds servers matching your weather criteria.
+Automated server reroller for Helicity using OCR detection. Finds servers matching your criteria.
 
 ## Requirements
 
