@@ -1,3 +1,5 @@
+[!NOTE] ReHelicity is not released yet, and is planned to release some time this week.
+
 # ReHelicity
 
 Automated server reroller for Helicity using OCR detection. Finds servers matching your criteria.
