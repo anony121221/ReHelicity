@@ -1,6 +1,6 @@
 Few things to keep in mind: 
 1. ReHelicity is not released yet, and is planned to release some time this week.
-2. This is 100% allowed and does not violate any terms of service. I am already being threatened by the helcity devs that I will be perm banned if this is released. This is just simply to make peoples life easier.
+2. This is 100% allowed and does not violate any terms of service. I am already being threatened by the helicity devs that I will be permanently banned if this is released. This is just simply to make peoples life easier.
 
 # ReHelicity
 
