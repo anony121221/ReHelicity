@@ -1,6 +1,6 @@
 Few things to keep in mind: 
 1. ReHelicity is not released yet, and is planned to release some time this week.
-2. I am aware that some of the devs dont want this to be apart of there game, this is tool for looking for good servers.
+2. This is 100% allowed and does not violate any terms of service. I am already being threatened by the helcity devs that I will be perm banned if this is released. This is just simply to make peoples life easier.
 
 # ReHelicity
 
@@ -23,8 +23,8 @@ If you install elsewhere, edit line 7 in the script to match your path.
 
 ## Setup
 
-1. Download `------.ahk` 
-2. Right-click and select "Run Script"
+1. Download `ReHelecity.ahk` 
+2. Once downloaded, open your downloads folder and double click to open.
 3. Click the **Config** tab
 4. Paste your private server link
 5. Click the **Main** tab
@@ -36,7 +36,7 @@ If you install elsewhere, edit line 7 in the script to match your path.
 ## Usage
 
 1. Set your target risk level (TSTM, MARGINAL, ENHANCED, SLIGHT, MODERATE, HIGH)
-2. (Optional) Enable filters for Lapse Rate, Wind Shear, CAPE, or Dew Point
+2. (Optional) Enable filters for Lapse Rate, Wind Shear, CAPE, and more.
 3. Press **F2** to start rerolling
 4. Press **F3** to stop
 
