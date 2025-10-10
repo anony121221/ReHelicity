@@ -99,7 +99,7 @@ OnGuiClose(*) {
             StopAll()
             ExitApp()
         }
-        return -1  ; Prevent window from closing
+        return -1
     }
     
     ExitApp()
@@ -132,7 +132,6 @@ ValidateFloatInput(editControl, settingName) {
         
         editControl.Opt("Background0x1a1a1a")
         
-        ; Format to maximum 1 decimal place
         if (Mod(numValue, 1) = 0) {
             Settings.%settingName%.value := Integer(numValue)
             editControl.Value := Integer(numValue)
@@ -612,10 +611,10 @@ ParseThermosText(text) {
     if (RegExMatch(textUpper, "LAPSE[^0-9]*(\d+)[\.,](\d)", &match)) {
         result.lapseRate := Float(match[1] . "." . match[2])
         LogToGUI("Found lapse rate: " . result.lapseRate . "C")
-    } else if (RegExMatch(textUpper, "LAPSE[^0-9]*(\d+)\s*[C°]", &match)) {
+    } else if (RegExMatch(textUpper, "LAPSE[^0-9]*(\d+)\s*[CÂ°]", &match)) {
         result.lapseRate := Float(match[1])
         LogToGUI("Found lapse rate: " . result.lapseRate . "C")
-    } else if (RegExMatch(textUpper, "(\d+)[\.,](\d+)\s*[°]?\s*C", &match)) {
+    } else if (RegExMatch(textUpper, "(\d+)[\.,](\d+)\s*[Â°]?\s*C", &match)) {
         result.lapseRate := Float(match[1] . "." . match[2])
         LogToGUI("Found lapse rate: " . result.lapseRate . "C (fallback pattern)")
     }
@@ -634,7 +633,7 @@ ParseThermosText(text) {
             result.dewPoint := Float(match[1])
         }
         LogToGUI("Found dew point: " . result.dewPoint . "F (pattern 2)")
-    } else if (RegExMatch(textUpper, "(\d{2})\s*°?\s*F", &match)) {
+    } else if (RegExMatch(textUpper, "(\d{2})\s*Â°?\s*F", &match)) {
         dewValue := Float(match[1])
         if (dewValue >= 30 && dewValue <= 90) {
             result.dewPoint := dewValue
@@ -788,6 +787,29 @@ SendWebhook(ocrResult) {
     }
 }
 
+TestWebhook() {
+    global Settings
+    
+    if (Settings.WebhookURL = "") {
+        MsgBox("Please enter a webhook URL first!", "Error", "Icon!")
+        return
+    }
+    
+    LogToGUI("Sending test webhook...")
+    
+    testResult := {
+        risk: "HIGH",
+        lapseRate: 8.5,
+        windShear: 45,
+        cape: 3500,
+        dewPoint: 72,
+        relativeHumidity: 85
+    }
+    
+    SendWebhook(testResult)
+    MsgBox("Test webhook sent! Check your Discord channel.", "Test Complete", "Iconi")
+}
+
 ; ============================================
 ; SETTINGS FUNCTIONS
 ; ============================================
@@ -876,7 +898,7 @@ SaveSettings() {
 CreateGUI() {
     global MainGui, LogBox, StatusText, AttemptText, TesseractPath, Settings
     
-    MainGui := Gui("+Resize", "Helicity Reroller v1.1 - Enhanced Stop Control")
+    MainGui := Gui("+Resize", "Helicity Reroller v1.01")
     MainGui.BackColor := "0x0a0a0a"
     MainGui.SetFont("s10", "Segoe UI")
     MainGui.OnEvent("Close", OnGuiClose)
@@ -980,47 +1002,44 @@ CreateGUI() {
     chkBloxstrap.Value := Settings.UseBloxstrap
     chkBloxstrap.OnEvent("Click", (*) => (Settings.UseBloxstrap := chkBloxstrap.Value, SaveSettings()))
     
-    MainGui.Add("GroupBox", "x40 y320 w720 h180 c0x555555", "Discord Webhook")
-    MainGui.Add("Text", "x60 y380 w120 c0xcccccc", "Webhook URL:")
-    editWebhook := MainGui.Add("Edit", "x180 y377 w550 h25 Background0x1a1a1a c0xffffff", Settings.WebhookURL)
+    MainGui.Add("GroupBox", "x40 y320 w720 h150 c0x555555", "Discord Webhook")
+    MainGui.Add("Text", "x60 y350 w120 c0xcccccc", "Webhook URL:")
+    editWebhook := MainGui.Add("Edit", "x180 y347 w550 h25 Background0x1a1a1a c0xffffff", Settings.WebhookURL)
     editWebhook.OnEvent("Change", (*) => (Settings.WebhookURL := editWebhook.Value, SaveSettings()))
     
-    MainGui.Add("Text", "x60 y415 w120 c0xcccccc", "User ID (ping):")
-    editUserID := MainGui.Add("Edit", "x180 y412 w550 h25 Background0x1a1a1a c0xffffff", Settings.WebhookUserID)
+    MainGui.Add("Text", "x60 y385 w120 c0xcccccc", "User ID (ping):")
+    editUserID := MainGui.Add("Edit", "x180 y382 w550 h25 Background0x1a1a1a c0xffffff", Settings.WebhookUserID)
     editUserID.OnEvent("Change", (*) => (Settings.WebhookUserID := editUserID.Value, SaveSettings()))
     
-    MainGui.Add("Text", "x60 y450 w120 c0xcccccc", "Role ID (ping):")
-    editRoleID := MainGui.Add("Edit", "x180 y447 w550 h25 Background0x1a1a1a c0xffffff", Settings.WebhookRoleID)
+    MainGui.Add("Text", "x60 y420 w120 c0xcccccc", "Role ID (ping):")
+    editRoleID := MainGui.Add("Edit", "x180 y417 w550 h25 Background0x1a1a1a c0xffffff", Settings.WebhookRoleID)
     editRoleID.OnEvent("Change", (*) => (Settings.WebhookRoleID := editRoleID.Value, SaveSettings()))
     
-    chkWebhook := MainGui.Add("Checkbox", "x60 y485 w200 c0xcccccc", "Enable Webhook Notifications")
+    chkWebhook := MainGui.Add("Checkbox", "x60 y450 w250 c0xcccccc", "Enable Webhook Notifications")
     chkWebhook.Value := Settings.WebhookEnabled
     chkWebhook.OnEvent("Click", (*) => (Settings.WebhookEnabled := chkWebhook.Value, SaveSettings()))
     
-    btnTestWebhook := MainGui.Add("Button", "x60 y520 w200 h30 Background0x2a4a7a c0xffffff", "Test Webhook")
-    btnTestWebhook.OnEvent("Click", (*) => TestWebhook())
+    MainGui.Add("GroupBox", "x40 y480 w720 h100 c0x555555", "Timing Settings")
     
-    MainGui.Add("GroupBox", "x40 y570 w720 h100 c0x555555", "Timing Settings")
-    
-    MainGui.Add("Text", "x60 y600 w180 c0xcccccc", "Key Press Delay (ms):")
-    editKeyDelay := MainGui.Add("Edit", "x250 y597 w80 h25 Background0x1a1a1a c0xffffff", Settings.KeyPressDelay)
+    MainGui.Add("Text", "x60 y510 w180 c0xcccccc", "Key Press Delay (ms):")
+    editKeyDelay := MainGui.Add("Edit", "x250 y507 w80 h25 Background0x1a1a1a c0xffffff", Settings.KeyPressDelay)
     editKeyDelay.OnEvent("Change", (*) => ValidateIntegerInput(editKeyDelay, "KeyPressDelay"))
     
-    MainGui.Add("Text", "x60 y635 w180 c0xcccccc", "Wait After Join (sec):")
-    editWaitJoin := MainGui.Add("Edit", "x250 y632 w80 h25 Background0x1a1a1a c0xffffff", Settings.InitialWaitAfterJoin)
+    MainGui.Add("Text", "x60 y545 w180 c0xcccccc", "Wait After Join (sec):")
+    editWaitJoin := MainGui.Add("Edit", "x250 y542 w80 h25 Background0x1a1a1a c0xffffff", Settings.InitialWaitAfterJoin)
     editWaitJoin.OnEvent("Change", (*) => ValidateIntegerInput(editWaitJoin, "InitialWaitAfterJoin"))
     
-    MainGui.Add("Text", "x400 y635 w160 c0xcccccc", "Spawn Delay (sec):")
-    editSpawnDelay := MainGui.Add("Edit", "x570 y632 w80 h25 Background0x1a1a1a c0xffffff", Settings.SpawnDelay)
+    MainGui.Add("Text", "x400 y545 w160 c0xcccccc", "Spawn Delay (sec):")
+    editSpawnDelay := MainGui.Add("Edit", "x570 y542 w80 h25 Background0x1a1a1a c0xffffff", Settings.SpawnDelay)
     editSpawnDelay.OnEvent("Change", (*) => ValidateIntegerInput(editSpawnDelay, "SpawnDelay"))
     
-    MainGui.Add("GroupBox", "x40 y680 w720 h70 c0x555555", "OCR Region")
-    MainGui.Add("Text", "x60 y710 w480 c0xcccccc", "Status: " . (Settings.OCRRegion.w > 0 ? "Calibrated - " . Settings.OCRRegion.w . "x" . Settings.OCRRegion.h . " pixels" : "Will auto-detect on first run"))
+    MainGui.Add("GroupBox", "x40 y590 w720 h70 c0x555555", "OCR Region")
+    MainGui.Add("Text", "x60 y620 w480 c0xcccccc", "Status: " . (Settings.OCRRegion.w > 0 ? "Calibrated - " . Settings.OCRRegion.w . "x" . Settings.OCRRegion.h . " pixels" : "Will auto-detect on first run"))
     
-    btnResetOCR := MainGui.Add("Button", "x550 y705 w85 h25 Background0x7a2a2a c0xffffff", "Reset (F5)")
+    btnResetOCR := MainGui.Add("Button", "x550 y615 w85 h25 Background0x7a2a2a c0xffffff", "Reset (F5)")
     btnResetOCR.OnEvent("Click", (*) => ResetOCRRegion())
     
-    btnManualOCR := MainGui.Add("Button", "x645 y705 w95 h25 Background0x2a7a7a c0xffffff", "Manual (F6)")
+    btnManualOCR := MainGui.Add("Button", "x645 y615 w95 h25 Background0x2a7a7a c0xffffff", "Manual (F6)")
     btnManualOCR.OnEvent("Click", (*) => ManualCalibrateOCR())
     
     tabControl.UseTab(3)
@@ -1039,9 +1058,8 @@ CreateGUI() {
     
     MainGui.Show("w800 h800")
     
-    LogToGUI("=== Helicity Reroller v1.1 - Enhanced Stop Control ===")
-    LogToGUI("NEW: Stop button (F3) no longer closes Roblox by default!")
-    LogToGUI("Enable 'Close Roblox when stopping' in Config tab if you want the old behavior.")
+    LogToGUI("=== Helicity Reroller v1.01 ===")
+    LogToGUI("Script initialized successfully")
     
     if (FileExist(TesseractPath)) {
         LogToGUI("Tesseract found: " . TesseractPath)
