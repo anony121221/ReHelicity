@@ -50,7 +50,24 @@ global LogFile := DataFolder . "\helicity_log.txt"
 ; ============================================
 ; TESSERACT PATH CONFIGURATION
 ; ============================================
-global TesseractPath := "C:\Users\ctsco\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"
+; Auto-detect Tesseract installation
+DetectTesseractPath() {
+    possiblePaths := [
+        "C:\Program Files\Tesseract-OCR\tesseract.exe",
+        "C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+        A_ProgramFiles "\Tesseract-OCR\tesseract.exe",
+        EnvGet("LOCALAPPDATA") "\Programs\Tesseract-OCR\tesseract.exe"
+    ]
+    
+    for path in possiblePaths {
+        if (FileExist(path))
+            return path
+    }
+    
+    return "C:\Program Files\Tesseract-OCR\tesseract.exe"
+}
+
+global TesseractPath := DetectTesseractPath()
 
 global Settings := {
     ServerLink: "https://www.roblox.com/games/17759606919/Helicity-1-8-4?privateServerLinkCode=YOUR_CODE_HERE",
