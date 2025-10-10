@@ -50,24 +50,7 @@ global LogFile := DataFolder . "\helicity_log.txt"
 ; ============================================
 ; TESSERACT PATH CONFIGURATION
 ; ============================================
-; Auto-detect Tesseract installation
-DetectTesseractPath() {
-    possiblePaths := [
-        "C:\Program Files\Tesseract-OCR\tesseract.exe",
-        "C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
-        A_ProgramFiles "\Tesseract-OCR\tesseract.exe",
-        EnvGet("LOCALAPPDATA") "\Programs\Tesseract-OCR\tesseract.exe"
-    ]
-    
-    for path in possiblePaths {
-        if (FileExist(path))
-            return path
-    }
-    
-    return "C:\Program Files\Tesseract-OCR\tesseract.exe"
-}
-
-global TesseractPath := DetectTesseractPath()
+global TesseractPath := "C:\Users\ctsco\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"
 
 global Settings := {
     ServerLink: "https://www.roblox.com/games/17759606919/Helicity-1-8-4?privateServerLinkCode=YOUR_CODE_HERE",
@@ -85,7 +68,8 @@ global Settings := {
     WebhookURL: "",
     WebhookEnabled: false,
     WebhookUserID: "",
-    WebhookRoleID: ""
+    WebhookRoleID: "",
+    CloseRobloxOnStop: false
 }
 
 global Running := false
@@ -102,6 +86,24 @@ global ValidationLimits := {
     CAPE: 7000,
     DewPoint: 90,
     RelativeHumidity: 100
+}
+
+; ============================================
+; GUI CLOSE HANDLER
+; ============================================
+OnGuiClose(*) {
+    global Running
+    
+    if (Running) {
+        result := MsgBox("Reroller is still running! Do you want to stop it and exit?", "Confirm Exit", "YesNo Icon!")
+        if (result = "Yes") {
+            StopAll()
+            ExitApp()
+        }
+        return -1  ; Prevent window from closing
+    }
+    
+    ExitApp()
 }
 
 ; ============================================
@@ -583,7 +585,6 @@ ParseThermosText(text) {
         return result
     }
     
-    ; IMPROVED RISK PARSING - handles OCR fragmentation
     if (InStr(textUpper, "HIGH") && InStr(textUpper, "RISK")) {
         result.risk := "HIGH"
         LogToGUI("Found risk: HIGH")
@@ -604,19 +605,17 @@ ParseThermosText(text) {
         LogToGUI("Found risk: TSTM")
     }
     
-    ; IMPROVED LAPSE RATE - extract any number before C or degree symbol
     if (RegExMatch(textUpper, "LAPSE[^0-9]*(\d+)[\.,](\d)", &match)) {
         result.lapseRate := Float(match[1] . "." . match[2])
         LogToGUI("Found lapse rate: " . result.lapseRate . "C")
-    } else if (RegExMatch(textUpper, "LAPSE[^0-9]*(\d+)\s*[CÂ°]", &match)) {
+    } else if (RegExMatch(textUpper, "LAPSE[^0-9]*(\d+)\s*[C°]", &match)) {
         result.lapseRate := Float(match[1])
         LogToGUI("Found lapse rate: " . result.lapseRate . "C")
-    } else if (RegExMatch(textUpper, "(\d+)[\.,](\d+)\s*[Â°]?\s*C", &match)) {
+    } else if (RegExMatch(textUpper, "(\d+)[\.,](\d+)\s*[°]?\s*C", &match)) {
         result.lapseRate := Float(match[1] . "." . match[2])
         LogToGUI("Found lapse rate: " . result.lapseRate . "C (fallback pattern)")
     }
     
-    ; IMPROVED DEW POINT - multiple patterns with better character handling
     if (RegExMatch(textUpper, "DEW\s*POINT[^0-9]*(\d+)[\.,]?(\d*)", &match)) {
         if (match.Count >= 2 && match[2] != "") {
             result.dewPoint := Float(match[1] . "." . match[2])
@@ -631,7 +630,7 @@ ParseThermosText(text) {
             result.dewPoint := Float(match[1])
         }
         LogToGUI("Found dew point: " . result.dewPoint . "F (pattern 2)")
-    } else if (RegExMatch(textUpper, "(\d{2})\s*Â?\s*[°Â]\s*F", &match)) {
+    } else if (RegExMatch(textUpper, "(\d{2})\s*°?\s*F", &match)) {
         dewValue := Float(match[1])
         if (dewValue >= 30 && dewValue <= 90) {
             result.dewPoint := dewValue
@@ -639,7 +638,6 @@ ParseThermosText(text) {
         }
     }
     
-    ; IMPROVED CAPE - extract 3-4 digit numbers near CAPE
     if (RegExMatch(textUpper, "CAPE[^0-9]*(\d{3,4})[\.,]?(\d*)", &match)) {
         if (match.Count >= 2 && match[2] != "") {
             result.cape := Float(match[1] . "." . match[2])
@@ -652,7 +650,6 @@ ParseThermosText(text) {
         LogToGUI("Found CAPE: " . result.cape . " J/Kg (fallback pattern)")
     }
     
-    ; IMPROVED WIND SHEAR - extract numbers near SHEAR or KTS
     if (RegExMatch(textUpper, "SHEAR[^0-9]*(\d+)[\.,]?(\d*)", &match)) {
         if (match.Count >= 2 && match[2] != "") {
             result.windShear := Float(match[1] . "." . match[2])
@@ -668,7 +665,6 @@ ParseThermosText(text) {
         }
     }
     
-    ; IMPROVED RELATIVE HUMIDITY - handle misreads and extract proper percentage
     if (RegExMatch(textUpper, "HUMID[^0-9]*(\d{2})[\.,]?(\d*)\s*[%l1I]", &match)) {
         humidValue := Float(match[1])
         if (match.Count >= 2 && match[2] != "" && match[2] != "1") {
@@ -804,6 +800,7 @@ LoadSettings() {
         Settings.ServerLink := IniRead(SettingsFile, "General", "ServerLink", Settings.ServerLink)
         Settings.UseBloxstrap := IniRead(SettingsFile, "General", "UseBloxstrap", "0") = "1"
         Settings.TargetRisk := IniRead(SettingsFile, "General", "TargetRisk", Settings.TargetRisk)
+        Settings.CloseRobloxOnStop := IniRead(SettingsFile, "General", "CloseRobloxOnStop", "0") = "1"
         Settings.KeyPressDelay := Integer(IniRead(SettingsFile, "Timing", "KeyPressDelay", Settings.KeyPressDelay))
         Settings.InitialWaitAfterJoin := Integer(IniRead(SettingsFile, "Timing", "InitialWaitAfterJoin", Settings.InitialWaitAfterJoin))
         Settings.SpawnDelay := Integer(IniRead(SettingsFile, "Timing", "SpawnDelay", Settings.SpawnDelay))
@@ -840,6 +837,7 @@ SaveSettings() {
         IniWrite(Settings.ServerLink, SettingsFile, "General", "ServerLink")
         IniWrite(Settings.UseBloxstrap ? "1" : "0", SettingsFile, "General", "UseBloxstrap")
         IniWrite(Settings.TargetRisk, SettingsFile, "General", "TargetRisk")
+        IniWrite(Settings.CloseRobloxOnStop ? "1" : "0", SettingsFile, "General", "CloseRobloxOnStop")
         IniWrite(String(Settings.KeyPressDelay), SettingsFile, "Timing", "KeyPressDelay")
         IniWrite(String(Settings.InitialWaitAfterJoin), SettingsFile, "Timing", "InitialWaitAfterJoin")
         IniWrite(String(Settings.SpawnDelay), SettingsFile, "Timing", "SpawnDelay")
@@ -876,9 +874,10 @@ SaveSettings() {
 CreateGUI() {
     global MainGui, LogBox, StatusText, AttemptText, TesseractPath, Settings
     
-    MainGui := Gui("+Resize", "Helicity Reroller v10.4 - Enhanced Parsing")
+    MainGui := Gui("+Resize", "Helicity Reroller v1.1 - Enhanced Stop Control")
     MainGui.BackColor := "0x0a0a0a"
     MainGui.SetFont("s10", "Segoe UI")
+    MainGui.OnEvent("Close", OnGuiClose)
     
     MainGui.SetFont("s14 bold", "Segoe UI")
     MainGui.Add("Text", "x20 y20 w760 cWhite Center", "ReHelicity")
@@ -970,7 +969,7 @@ CreateGUI() {
     
     tabControl.UseTab(2)
     
-    MainGui.Add("GroupBox", "x40 y190 w720 h120 c0x555555", "Server Settings")
+    MainGui.Add("GroupBox", "x40 y190 w720 h150 c0x555555", "Server Settings")
     MainGui.Add("Text", "x60 y220 w120 c0xcccccc", "Server Link:")
     editServerLink := MainGui.Add("Edit", "x180 y217 w550 h25 Background0x1a1a1a c0xffffff", Settings.ServerLink)
     editServerLink.OnEvent("Change", (*) => (Settings.ServerLink := editServerLink.Value, SaveSettings()))
@@ -979,44 +978,52 @@ CreateGUI() {
     chkBloxstrap.Value := Settings.UseBloxstrap
     chkBloxstrap.OnEvent("Click", (*) => (Settings.UseBloxstrap := chkBloxstrap.Value, SaveSettings()))
     
-    MainGui.Add("GroupBox", "x40 y320 w720 h180 c0x555555", "Discord Webhook")
-    MainGui.Add("Text", "x60 y350 w120 c0xcccccc", "Webhook URL:")
-    editWebhook := MainGui.Add("Edit", "x180 y347 w550 h25 Background0x1a1a1a c0xffffff", Settings.WebhookURL)
+    chkCloseOnStop := MainGui.Add("Checkbox", "x60 y290 w300 c0xcccccc", "Close Roblox when stopping (F3)")
+    chkCloseOnStop.Value := Settings.CloseRobloxOnStop
+    chkCloseOnStop.OnEvent("Click", (*) => (Settings.CloseRobloxOnStop := chkCloseOnStop.Value, SaveSettings()))
+    MainGui.Add("Text", "x80 y315 w640 c0x888888", "When enabled, pressing Stop will close Roblox. When disabled, Roblox stays open.")
+    
+    MainGui.Add("GroupBox", "x40 y350 w720 h210 c0x555555", "Discord Webhook")
+    MainGui.Add("Text", "x60 y380 w120 c0xcccccc", "Webhook URL:")
+    editWebhook := MainGui.Add("Edit", "x180 y377 w550 h25 Background0x1a1a1a c0xffffff", Settings.WebhookURL)
     editWebhook.OnEvent("Change", (*) => (Settings.WebhookURL := editWebhook.Value, SaveSettings()))
     
-    MainGui.Add("Text", "x60 y385 w120 c0xcccccc", "User ID (ping):")
-    editUserID := MainGui.Add("Edit", "x180 y382 w550 h25 Background0x1a1a1a c0xffffff", Settings.WebhookUserID)
+    MainGui.Add("Text", "x60 y415 w120 c0xcccccc", "User ID (ping):")
+    editUserID := MainGui.Add("Edit", "x180 y412 w550 h25 Background0x1a1a1a c0xffffff", Settings.WebhookUserID)
     editUserID.OnEvent("Change", (*) => (Settings.WebhookUserID := editUserID.Value, SaveSettings()))
     
-    MainGui.Add("Text", "x60 y420 w120 c0xcccccc", "Role ID (ping):")
-    editRoleID := MainGui.Add("Edit", "x180 y417 w550 h25 Background0x1a1a1a c0xffffff", Settings.WebhookRoleID)
+    MainGui.Add("Text", "x60 y450 w120 c0xcccccc", "Role ID (ping):")
+    editRoleID := MainGui.Add("Edit", "x180 y447 w550 h25 Background0x1a1a1a c0xffffff", Settings.WebhookRoleID)
     editRoleID.OnEvent("Change", (*) => (Settings.WebhookRoleID := editRoleID.Value, SaveSettings()))
     
-    chkWebhook := MainGui.Add("Checkbox", "x60 y455 w200 c0xcccccc", "Enable Webhook Notifications")
+    chkWebhook := MainGui.Add("Checkbox", "x60 y485 w200 c0xcccccc", "Enable Webhook Notifications")
     chkWebhook.Value := Settings.WebhookEnabled
     chkWebhook.OnEvent("Click", (*) => (Settings.WebhookEnabled := chkWebhook.Value, SaveSettings()))
     
-    MainGui.Add("GroupBox", "x40 y510 w720 h140 c0x555555", "Timing Settings")
+    btnTestWebhook := MainGui.Add("Button", "x60 y520 w200 h30 Background0x2a4a7a c0xffffff", "Test Webhook")
+    btnTestWebhook.OnEvent("Click", (*) => TestWebhook())
     
-    MainGui.Add("Text", "x60 y540 w180 c0xcccccc", "Key Press Delay (ms):")
-    editKeyDelay := MainGui.Add("Edit", "x250 y537 w80 h25 Background0x1a1a1a c0xffffff", Settings.KeyPressDelay)
+    MainGui.Add("GroupBox", "x40 y570 w720 h100 c0x555555", "Timing Settings")
+    
+    MainGui.Add("Text", "x60 y600 w180 c0xcccccc", "Key Press Delay (ms):")
+    editKeyDelay := MainGui.Add("Edit", "x250 y597 w80 h25 Background0x1a1a1a c0xffffff", Settings.KeyPressDelay)
     editKeyDelay.OnEvent("Change", (*) => ValidateIntegerInput(editKeyDelay, "KeyPressDelay"))
     
-    MainGui.Add("Text", "x60 y575 w180 c0xcccccc", "Wait After Join (sec):")
-    editWaitJoin := MainGui.Add("Edit", "x250 y572 w80 h25 Background0x1a1a1a c0xffffff", Settings.InitialWaitAfterJoin)
+    MainGui.Add("Text", "x60 y635 w180 c0xcccccc", "Wait After Join (sec):")
+    editWaitJoin := MainGui.Add("Edit", "x250 y632 w80 h25 Background0x1a1a1a c0xffffff", Settings.InitialWaitAfterJoin)
     editWaitJoin.OnEvent("Change", (*) => ValidateIntegerInput(editWaitJoin, "InitialWaitAfterJoin"))
     
-    MainGui.Add("Text", "x60 y610 w180 c0xcccccc", "Spawn Delay (sec):")
-    editSpawnDelay := MainGui.Add("Edit", "x250 y607 w80 h25 Background0x1a1a1a c0xffffff", Settings.SpawnDelay)
+    MainGui.Add("Text", "x400 y635 w160 c0xcccccc", "Spawn Delay (sec):")
+    editSpawnDelay := MainGui.Add("Edit", "x570 y632 w80 h25 Background0x1a1a1a c0xffffff", Settings.SpawnDelay)
     editSpawnDelay.OnEvent("Change", (*) => ValidateIntegerInput(editSpawnDelay, "SpawnDelay"))
     
-    MainGui.Add("GroupBox", "x40 y660 w720 h90 c0x555555", "OCR Region")
-    MainGui.Add("Text", "x60 y690 w660 c0xcccccc", "Status: " . (Settings.OCRRegion.w > 0 ? "Calibrated - " . Settings.OCRRegion.w . "x" . Settings.OCRRegion.h . " pixels" : "Will auto-detect on first run"))
+    MainGui.Add("GroupBox", "x40 y680 w720 h70 c0x555555", "OCR Region")
+    MainGui.Add("Text", "x60 y710 w480 c0xcccccc", "Status: " . (Settings.OCRRegion.w > 0 ? "Calibrated - " . Settings.OCRRegion.w . "x" . Settings.OCRRegion.h . " pixels" : "Will auto-detect on first run"))
     
-    btnResetOCR := MainGui.Add("Button", "x60 y715 w200 h25 Background0x7a2a2a c0xffffff", "Reset OCR (F5)")
+    btnResetOCR := MainGui.Add("Button", "x550 y705 w85 h25 Background0x7a2a2a c0xffffff", "Reset (F5)")
     btnResetOCR.OnEvent("Click", (*) => ResetOCRRegion())
     
-    btnManualOCR := MainGui.Add("Button", "x270 y715 w200 h25 Background0x2a7a7a c0xffffff", "Manual Calibrate (F6)")
+    btnManualOCR := MainGui.Add("Button", "x645 y705 w95 h25 Background0x2a7a7a c0xffffff", "Manual (F6)")
     btnManualOCR.OnEvent("Click", (*) => ManualCalibrateOCR())
     
     tabControl.UseTab(3)
@@ -1035,8 +1042,9 @@ CreateGUI() {
     
     MainGui.Show("w800 h800")
     
-    LogToGUI("=== Helicity Reroller Initialized ===")
-    LogToGUI("Enhanced Parsing Edition - Improved OCR accuracy!")
+    LogToGUI("=== Helicity Reroller v1.1 - Enhanced Stop Control ===")
+    LogToGUI("NEW: Stop button (F3) no longer closes Roblox by default!")
+    LogToGUI("Enable 'Close Roblox when stopping' in Config tab if you want the old behavior.")
     
     if (FileExist(TesseractPath)) {
         LogToGUI("Tesseract found: " . TesseractPath)
@@ -1078,6 +1086,28 @@ UpdateAttempts() {
     global AttemptText, Attempts
     if (AttemptText)
         AttemptText.Text := "Attempts: " . Attempts
+}
+
+TestWebhook() {
+    global Settings
+    
+    if (!Settings.WebhookEnabled || Settings.WebhookURL = "") {
+        MsgBox("Please enable webhook and enter a webhook URL first!", "Test Webhook", "Icon!")
+        return
+    }
+    
+    testResult := {
+        risk: "HIGH",
+        lapseRate: 8.5,
+        windShear: 45,
+        cape: 3500,
+        dewPoint: 75,
+        relativeHumidity: 85
+    }
+    
+    LogToGUI("Sending test webhook...")
+    SendWebhook(testResult)
+    MsgBox("Test webhook sent! Check your Discord channel.", "Test Webhook", "Iconi")
 }
 
 ; ============================================
@@ -1138,11 +1168,9 @@ ManualCalibrateOCR() {
     startX := wx + Round((ww - defaultW) / 2)
     startY := wy + Round((wh - defaultH) / 2)
     
-    ; Create hollow white box overlay
     overlayGui := Gui("+AlwaysOnTop -Caption +ToolWindow +E0x20")
     overlayGui.BackColor := "0x000000"
     
-    ; Create 4 white border lines to make hollow box
     borderThickness := 3
     topBorder := overlayGui.Add("Progress", "x0 y0 w" . defaultW . " h" . borderThickness . " Background0xFFFFFF")
     bottomBorder := overlayGui.Add("Progress", "x0 y" . (defaultH - borderThickness) . " w" . defaultW . " h" . borderThickness . " Background0xFFFFFF")
@@ -1296,7 +1324,6 @@ ManualCalibrateOCR() {
                 if (newH < 100)
                     newH := 100
                 
-                ; Update border positions
                 topBorder.Move(0, 0, newW, borderThickness)
                 bottomBorder.Move(0, newH - borderThickness, newW, borderThickness)
                 leftBorder.Move(0, 0, borderThickness, newH)
@@ -1375,13 +1402,13 @@ StartReroller() {
     global Running
     
     if (Running) {
-        StopAll()
+        LogToGUI("Already running!")
         return
     }
     
     Running := true
     UpdateStatus("Running...")
-    LogToGUI("REROLLER STARTED")
+    LogToGUI("=== REROLLER STARTED ===")
     LogToGUI("Target: " . Settings.TargetRisk)
     
     SetTimer(RunRerollerLoop, 100)
@@ -1400,7 +1427,7 @@ RunRerollerLoop() {
     try {
         Attempts++
         UpdateAttempts()
-        LogToGUI("ATTEMPT #" . Attempts)
+        LogToGUI("=== ATTEMPT #" . Attempts . " ===")
         
         if (!LaunchRoblox()) {
             StopAll()
@@ -1686,7 +1713,7 @@ CompareValue(actual, operator, target) {
 }
 
 TestThermosRead() {
-    LogToGUI("Testing OCR...")
+    LogToGUI("=== TESTING OCR ===")
     
     if (!WinExist("ahk_exe RobloxPlayerBeta.exe")) {
         LogToGUI("ERROR: Roblox not running")
@@ -1709,13 +1736,13 @@ TestThermosRead() {
         return
     }
     
-    LogToGUI("OCR Test SUCCESS!")
+    LogToGUI("=== OCR Test SUCCESS! ===")
     LogToGUI("Risk: " . ocrResult.risk)
-    LogToGUI("Lapse: " . ocrResult.lapseRate)
-    LogToGUI("Shear: " . ocrResult.windShear)
-    LogToGUI("CAPE: " . ocrResult.cape)
-    LogToGUI("Dew: " . ocrResult.dewPoint)
-    LogToGUI("Humidity: " . ocrResult.relativeHumidity)
+    LogToGUI("Lapse: " . ocrResult.lapseRate . "C")
+    LogToGUI("Shear: " . ocrResult.windShear . " kts")
+    LogToGUI("CAPE: " . ocrResult.cape . " J/Kg")
+    LogToGUI("Dew: " . ocrResult.dewPoint . "F")
+    LogToGUI("Humidity: " . ocrResult.relativeHumidity . "%")
     
     SoundBeep(1000, 200)
 }
@@ -1741,7 +1768,6 @@ LaunchRoblox() {
         return false
     }
     
-    ; Use the private server link format that Roblox expects
     robloxUrl := "roblox://placeId=" . placeId . "&linkCode=" . code
     
     LogToGUI("Place ID: " . placeId)
@@ -1890,12 +1916,19 @@ CloseRoblox() {
 }
 
 StopAll() {
-    global Running
+    global Running, Settings
     
     Running := false
     SetTimer(RunRerollerLoop, 0)
     UpdateStatus("Stopped")
-    LogToGUI("Stopped")
+    LogToGUI("=== STOPPED ===")
+    
+    if (Settings.CloseRobloxOnStop) {
+        LogToGUI("Closing Roblox (user setting enabled)...")
+        CloseRoblox()
+    } else {
+        LogToGUI("Roblox left open (disable in Config tab if you want to close)")
+    }
 }
 
 ; ============================================
