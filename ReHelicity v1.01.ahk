@@ -68,8 +68,7 @@ global Settings := {
     WebhookURL: "",
     WebhookEnabled: false,
     WebhookUserID: "",
-    WebhookRoleID: "",
-    CloseRobloxOnStop: false
+    WebhookRoleID: ""
 }
 
 global Running := false
@@ -800,7 +799,6 @@ LoadSettings() {
         Settings.ServerLink := IniRead(SettingsFile, "General", "ServerLink", Settings.ServerLink)
         Settings.UseBloxstrap := IniRead(SettingsFile, "General", "UseBloxstrap", "0") = "1"
         Settings.TargetRisk := IniRead(SettingsFile, "General", "TargetRisk", Settings.TargetRisk)
-        Settings.CloseRobloxOnStop := IniRead(SettingsFile, "General", "CloseRobloxOnStop", "0") = "1"
         Settings.KeyPressDelay := Integer(IniRead(SettingsFile, "Timing", "KeyPressDelay", Settings.KeyPressDelay))
         Settings.InitialWaitAfterJoin := Integer(IniRead(SettingsFile, "Timing", "InitialWaitAfterJoin", Settings.InitialWaitAfterJoin))
         Settings.SpawnDelay := Integer(IniRead(SettingsFile, "Timing", "SpawnDelay", Settings.SpawnDelay))
@@ -837,7 +835,6 @@ SaveSettings() {
         IniWrite(Settings.ServerLink, SettingsFile, "General", "ServerLink")
         IniWrite(Settings.UseBloxstrap ? "1" : "0", SettingsFile, "General", "UseBloxstrap")
         IniWrite(Settings.TargetRisk, SettingsFile, "General", "TargetRisk")
-        IniWrite(Settings.CloseRobloxOnStop ? "1" : "0", SettingsFile, "General", "CloseRobloxOnStop")
         IniWrite(String(Settings.KeyPressDelay), SettingsFile, "Timing", "KeyPressDelay")
         IniWrite(String(Settings.InitialWaitAfterJoin), SettingsFile, "Timing", "InitialWaitAfterJoin")
         IniWrite(String(Settings.SpawnDelay), SettingsFile, "Timing", "SpawnDelay")
@@ -969,7 +966,7 @@ CreateGUI() {
     
     tabControl.UseTab(2)
     
-    MainGui.Add("GroupBox", "x40 y190 w720 h150 c0x555555", "Server Settings")
+    MainGui.Add("GroupBox", "x40 y190 w720 h120 c0x555555", "Server Settings")
     MainGui.Add("Text", "x60 y220 w120 c0xcccccc", "Server Link:")
     editServerLink := MainGui.Add("Edit", "x180 y217 w550 h25 Background0x1a1a1a c0xffffff", Settings.ServerLink)
     editServerLink.OnEvent("Change", (*) => (Settings.ServerLink := editServerLink.Value, SaveSettings()))
@@ -978,12 +975,7 @@ CreateGUI() {
     chkBloxstrap.Value := Settings.UseBloxstrap
     chkBloxstrap.OnEvent("Click", (*) => (Settings.UseBloxstrap := chkBloxstrap.Value, SaveSettings()))
     
-    chkCloseOnStop := MainGui.Add("Checkbox", "x60 y290 w300 c0xcccccc", "Close Roblox when stopping (F3)")
-    chkCloseOnStop.Value := Settings.CloseRobloxOnStop
-    chkCloseOnStop.OnEvent("Click", (*) => (Settings.CloseRobloxOnStop := chkCloseOnStop.Value, SaveSettings()))
-    MainGui.Add("Text", "x80 y315 w640 c0x888888", "When enabled, pressing Stop will close Roblox. When disabled, Roblox stays open.")
-    
-    MainGui.Add("GroupBox", "x40 y350 w720 h210 c0x555555", "Discord Webhook")
+    MainGui.Add("GroupBox", "x40 y320 w720 h180 c0x555555", "Discord Webhook")
     MainGui.Add("Text", "x60 y380 w120 c0xcccccc", "Webhook URL:")
     editWebhook := MainGui.Add("Edit", "x180 y377 w550 h25 Background0x1a1a1a c0xffffff", Settings.WebhookURL)
     editWebhook.OnEvent("Change", (*) => (Settings.WebhookURL := editWebhook.Value, SaveSettings()))
@@ -1086,28 +1078,6 @@ UpdateAttempts() {
     global AttemptText, Attempts
     if (AttemptText)
         AttemptText.Text := "Attempts: " . Attempts
-}
-
-TestWebhook() {
-    global Settings
-    
-    if (!Settings.WebhookEnabled || Settings.WebhookURL = "") {
-        MsgBox("Please enable webhook and enter a webhook URL first!", "Test Webhook", "Icon!")
-        return
-    }
-    
-    testResult := {
-        risk: "HIGH",
-        lapseRate: 8.5,
-        windShear: 45,
-        cape: 3500,
-        dewPoint: 75,
-        relativeHumidity: 85
-    }
-    
-    LogToGUI("Sending test webhook...")
-    SendWebhook(testResult)
-    MsgBox("Test webhook sent! Check your Discord channel.", "Test Webhook", "Iconi")
 }
 
 ; ============================================
@@ -1916,19 +1886,13 @@ CloseRoblox() {
 }
 
 StopAll() {
-    global Running, Settings
+    global Running
     
     Running := false
     SetTimer(RunRerollerLoop, 0)
     UpdateStatus("Stopped")
     LogToGUI("=== STOPPED ===")
-    
-    if (Settings.CloseRobloxOnStop) {
-        LogToGUI("Closing Roblox (user setting enabled)...")
-        CloseRoblox()
-    } else {
-        LogToGUI("Roblox left open (disable in Config tab if you want to close)")
-    }
+    LogToGUI("Roblox left open - close manually if needed")
 }
 
 ; ============================================
