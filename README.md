@@ -218,6 +218,7 @@ You can edit `helicity_settings.ini` directly with a text editor for advanced co
 - OCR: Tesseract OCR by Google
 - Script: AutoHotkey v2.0
 - Game: Helicity by Roblox developers
+- Thanks to ReTwisted for the idea! Go check them out here: https://github.com/Okmada/ReTwisted
 
 ## License
 
