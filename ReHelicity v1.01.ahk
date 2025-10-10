@@ -126,15 +126,20 @@ ValidateFloatInput(editControl, settingName) {
         
         if (ValidationLimits.HasOwnProp(settingName) && numValue > ValidationLimits.%settingName%) {
             editControl.Opt("BackgroundRed")
-            return
+            numValue := ValidationLimits.%settingName%
+            editControl.Value := numValue
         }
         
         editControl.Opt("Background0x1a1a1a")
         
+        ; Format to maximum 1 decimal place
         if (Mod(numValue, 1) = 0) {
             Settings.%settingName%.value := Integer(numValue)
+            editControl.Value := Integer(numValue)
         } else {
-            Settings.%settingName%.value := numValue
+            formattedValue := Round(numValue, 1)
+            Settings.%settingName%.value := formattedValue
+            editControl.Value := formattedValue
         }
         
         SaveSettings()
@@ -1407,6 +1412,11 @@ RunRerollerLoop() {
         if (!ExecuteFullSequence()) {
             LogToGUI("Sequence failed, rerolling...")
             
+            if (!Running) {
+                LogToGUI("Stopped by user - not closing Roblox")
+                return
+            }
+            
             if (QuickLeaveGame()) {
                 LogToGUI("Successfully left game after sequence failure")
                 Sleep(400)
@@ -1428,6 +1438,10 @@ RunRerollerLoop() {
             LogToGUI("Auto-detecting thermos position...")
             if (!DetectThermosRegion()) {
                 LogToGUI("Auto-detection failed, retrying...")
+                if (!Running) {
+                    LogToGUI("Stopped by user - not closing Roblox")
+                    return
+                }
                 CloseRoblox()
                 Sleep(2000)
                 if (Running)
@@ -1441,6 +1455,11 @@ RunRerollerLoop() {
         if (!ocrResult.success) {
             errorMsg := ocrResult.HasOwnProp("error") ? ocrResult.error : "Unknown OCR error"
             LogToGUI("OCR failed: " . errorMsg)
+            
+            if (!Running) {
+                LogToGUI("Stopped by user - not closing Roblox")
+                return
+            }
             
             if (QuickLeaveGame()) {
                 LogToGUI("Successfully left game after OCR failure")
@@ -1508,6 +1527,11 @@ RunRerollerLoop() {
         
         LogToGUI("Not matched, rerolling...")
         
+        if (!Running) {
+            LogToGUI("Stopped by user - not closing Roblox")
+            return
+        }
+        
         if (QuickLeaveGame()) {
             LogToGUI("Successfully left game")
             Sleep(400)
@@ -1522,6 +1546,10 @@ RunRerollerLoop() {
             
     } catch as err {
         LogToGUI("Error: " . err.Message)
+        if (!Running) {
+            LogToGUI("Stopped by user - not closing Roblox")
+            return
+        }
         CloseRoblox()
         if (Running)
             SetTimer(RunRerollerLoop, 3000)
