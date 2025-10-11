@@ -48,9 +48,42 @@ global DataFolder := Folders.debug
 global LogFile := DataFolder . "\helicity_log.txt"
 
 ; ============================================
-; TESSERACT PATH CONFIGURATION
+; TESSERACT PATH DETECTION
 ; ============================================
-global TesseractPath := "C:\Users\ctsco\AppData\Local\Programs\Tesseract-OCR\tesseract.exe"
+DetectTesseractPath() {
+    ; Check common installation locations
+    possiblePaths := [
+        EnvGet("USERPROFILE") . "\AppData\Local\Programs\Tesseract-OCR\tesseract.exe",
+        EnvGet("LOCALAPPDATA") . "\Programs\Tesseract-OCR\tesseract.exe",
+        "C:\Program Files\Tesseract-OCR\tesseract.exe",
+        "C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+        A_ProgramFiles . "\Tesseract-OCR\tesseract.exe"
+    ]
+    
+    ; Check each possible path
+    for path in possiblePaths {
+        if (FileExist(path)) {
+            return path
+        }
+    }
+    
+    ; Try to find in PATH environment variable
+    try {
+        shell := ComObject("WScript.Shell")
+        exec := shell.Exec("where tesseract.exe")
+        result := exec.StdOut.ReadAll()
+        if (result != "") {
+            firstLine := StrSplit(result, "`n")[1]
+            if (FileExist(Trim(firstLine))) {
+                return Trim(firstLine)
+            }
+        }
+    }
+    
+    return ""
+}
+
+global TesseractPath := DetectTesseractPath()
 
 global Settings := {
     ServerLink: "https://www.roblox.com/games/17759606919/Helicity-1-8-4?privateServerLinkCode=YOUR_CODE_HERE",
@@ -323,6 +356,12 @@ DetectThermosRegion() {
     
     LogToGUI("Auto-detecting thermos position...")
     
+    if (TesseractPath = "") {
+        LogToGUI("ERROR: Tesseract not found!")
+        LogToGUI("Install from: https://github.com/UB-Mannheim/tesseract/wiki")
+        return false
+    }
+    
     if (!WinExist("ahk_exe RobloxPlayerBeta.exe")) {
         LogToGUI("ERROR: Roblox window not found")
         return false
@@ -430,6 +469,13 @@ ReadThermosOCR() {
     global TesseractPath, DataFolder, Settings
     
     try {
+        if (TesseractPath = "") {
+            return {
+                success: false, 
+                error: "Tesseract not found. Please install Tesseract OCR."
+            }
+        }
+        
         if (!FileExist(TesseractPath)) {
             return {
                 success: false, 
@@ -1061,12 +1107,15 @@ CreateGUI() {
     LogToGUI("=== Helicity Reroller v1.01 ===")
     LogToGUI("Script initialized successfully")
     
-    if (FileExist(TesseractPath)) {
+    if (TesseractPath != "" && FileExist(TesseractPath)) {
         LogToGUI("Tesseract found: " . TesseractPath)
     } else {
         LogToGUI("WARNING: Tesseract NOT found!")
         LogToGUI("Install from: https://github.com/UB-Mannheim/tesseract/wiki")
-        LogToGUI("Expected path: " . TesseractPath)
+        LogToGUI("Checked locations:")
+        LogToGUI("  - %USERPROFILE%\AppData\Local\Programs\Tesseract-OCR\")
+        LogToGUI("  - C:\Program Files\Tesseract-OCR\")
+        LogToGUI("  - C:\Program Files (x86)\Tesseract-OCR\")
     }
     
     if (Settings.OCRRegion.w > 0) {
@@ -1729,6 +1778,8 @@ CompareValue(actual, operator, target) {
 }
 
 TestThermosRead() {
+    global Settings
+    
     LogToGUI("=== TESTING OCR ===")
     
     if (!WinExist("ahk_exe RobloxPlayerBeta.exe")) {
